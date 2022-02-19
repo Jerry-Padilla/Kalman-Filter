@@ -22,15 +22,17 @@ class KalmanFilter:
 
         # time (t)
         self.currTime = 0
-        # x
+        # x position in X and Y values
         self.pos =[0,0]
-        # v
+        # v as in velocity  in X and Y vectors
         self.vel =[0,0]
-        # A
+        # A as in acceleration in X and Y vectors
         self.acc =[0,0]
         # position X at time t-1 (tm1)
         self.xtm1 = 0
-        #Time interval between changes.
+        # position Y at time t-1 (tm1)
+        self.ytm1 = 0
+        # Time interval between changes.
         self.deltaTime = 0
 
     def __str__(self):
@@ -52,5 +54,5 @@ class KalmanFilter:
 
     def update(self):
         print('Update Step at time = {self.currTime}\n'.format(self=self))
-
+        #todo the method (duh)
         self.currTime += 1
