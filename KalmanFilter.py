@@ -13,46 +13,83 @@ __status__ = "Incomplete"
 
 #imports
 import numpy as np
-
+import matplotlib
+from scipy.linalg import solve
+from filterpy.stats import plot_covariance_ellipse
 
 class KalmanFilter:
 
-    def __init__(self):
-        #these variables have the x and y components in a 2D plane for our application
+    currTime=0
+    pos = [0,0]
+    vel = [0,0]
+    acc=[0,0]
 
-        # time (t)
-        self.currTime = 0
-        # x position in X and Y values
-        self.pos =[0,0]
-        # v as in velocity  in X and Y vectors
-        self.vel =[0,0]
-        # A as in acceleration in X and Y vectors
-        self.acc =[0,0]
-        # position X at time t-1 (tm1)
+    xtm1=0
+    ytm1=0
+
+    #time step
+    deltaTime=1
+
+    # P (covariance) = [sigma^2 pos,0].[0,sigma^2 vel]
+    P=0
+    # u (mu) =[position],[velocity ] in x component
+    u=0
+    # State transition matrix, Φ Phi
+    F=0
+    Q=0
+
+
+    def __init__(self,dt, velx = 0, vely = 0,posix = 0,posiy = 0):
+
+        self.currTime = 1
+        self.pos = [posix, posiy]
+        self.vel = [velx,vely]
+        self.acc = [0, 0]
         self.xtm1 = 0
-        # position Y at time t-1 (tm1)
         self.ytm1 = 0
-        # Time interval between changes.
-        self.deltaTime = 0
+        self.deltaTime = dt
+
+        self.u = np.array([[self.pos[0], self.vel[0]]]).T
+
+
+        self.P = np.diag([20, 900])
+
+
+        self.F = np.array([[1, self.deltaTime], [0, 1]])
+
+        # Process Noise (Q)
+        self.Q = 10
 
     def __str__(self):
 
         return  'Time: {self.currTime} \n' \
                 'Position: X={self.pos[0]} Y={self.pos[1]} \n' \
-                'Velocity: X={self.vel[0]} Y={self.vel[1]} \n'\
-                'Acceleration: X={self.acc[0]} Y={self.acc[1]}\n'.format(self=self)
+                'Velocity: X={self.vel[0]} Y={self.vel[1]} \n' \
+                'Acceleration: X={self.acc[0]} Y={self.acc[1]}\n '.format(self=self)
 
     def run(self):
         print("Running...")
         self.predict()
-        self.update()
+      #  self.update()
 
     def predict(self):
-
         print('Prediction Step at time = {self.currTime}'.format(self=self))
+
+        #x = Fx
+        self.pos[0] = np.dot(self.F, self.pos[0])
+
+        # P = FPF' + Q
+        self.P = np.dot(np.dot(self.F, self.P), self.F.T) + self.Q
+
+        plot_covariance_ellipse(self.u, self.P,edgecolor='r',axis_equal = True,title= 'Covariance at time = {self.currTime}'.format(self=self) )
+        matplotlib.pyplot.xlabel('position')
+        matplotlib.pyplot.ylabel('velocity')
+        matplotlib.pyplot.show()
 
 
     def update(self):
         print('Update Step at time = {self.currTime}\n'.format(self=self))
         #todo the method (duh)
-        self.currTime += 1
+
+
+       # self.currTime += self.deltaTime;
