@@ -8,16 +8,57 @@ __credits__ = ["Gerardo R Padilla Jr.", "Adyasha Mohanty"]
 
 __version__ = "1.0"
 __email__ = "gerardopadillareynoso@gmail.com"
-__status__ = "Incomplete"
+__status__ = "Complete"
+
+from collections import namedtuple
 
 # imports
+<<<<<<< HEAD
+import matplotlib.pyplot as plt
+=======
 
+>>>>>>> 00f7637f3ded31390d3c070140d40f5deb575c67
 import numpy as np
 import matplotlib
 from scipy.linalg import solve
 from filterpy.stats import plot_covariance_ellipse
 
+gaussian = namedtuple('Gaussian', ['mean', 'var'])
+gaussian.__repr__ = lambda s: '𝒩(μ={:.3f}, 𝜎²={:.3f})'.format(s[0], s[1])
 
+<<<<<<< HEAD
+
+def gaussian_multiply(g1, g2):
+    mean = (g1.var * g2.mean + g2.var * g1.mean) / (g1.var + g2.var)
+    variance = (g1.var * g2.var) / (g1.var + g2.var)
+    return gaussian(mean, variance)
+
+
+class KalmanFilter:
+    # positions
+    pos = []
+    # velocities
+    vel = []
+    # accelerations
+    acc = []
+
+    def __init__(self, dtime=1, velx=0, posix=0, procVar=.2):
+        self.currTime = 0
+        self.procVar = procVar
+        self.dt = dtime
+
+        self.pos = [posix]
+        self.meas = [posix]
+        # velocities
+        self.vel = [velx]
+
+        # displacement to add to x
+        self.processModel = gaussian(self.dt, self.procVar)
+
+        self.sensorVar = .5
+
+        self.x = gaussian(1, 10)
+=======
 class KalmanFilter:
     currTime = 0
     pos = [0, 0]
@@ -61,12 +102,26 @@ class KalmanFilter:
                'Position: X={self.pos[0]} Y={self.pos[1]} \n' \
                'Velocity: X={self.vel[0]} Y={self.vel[1]} \n' \
                'Acceleration: X={self.acc[0]} Y={self.acc[1]}\n '.format(self=self)
+>>>>>>> 00f7637f3ded31390d3c070140d40f5deb575c67
 
-    def run(self):
-        print("Running...")
+    def __str__(self):
+        return 'Time: {self.currTime} \n' \
+               'Position: X={self.pos[0]} Y={self.pos[1]} \n' \
+               'Velocity: X={self.vel[0]} Y={self.vel[1]} \n' \
+               'Acceleration: X={self.acc[0]} Y={self.acc[1]}\n '.format(self=self)
+
+    def run(self, currx):
+        self.currx = currx
+        self.meas.append(self.currx)
         self.predict()
         self.update()
 
+<<<<<<< HEAD
+    def predict(self):
+        print('Prediction Step at time = {self.currTime}'.format(self=self))
+
+        self.prv = gaussian(self.x.mean + self.processModel.mean, self.x.var + self.processModel.var)
+=======
 
 def predict(self):
     print('Prediction Step at time = {self.currTime}'.format(self=self))
@@ -102,9 +157,37 @@ def update(self):
     # State Update
     # x = x¯ + K (dot)  y
     x += np.dot(K, y)
+>>>>>>> 00f7637f3ded31390d3c070140d40f5deb575c67
 
     #Covariance Update
     # P = (I− KH) P¯
     P = P - np.dot(np.dot(K, H), P))
 
+<<<<<<< HEAD
+        probs = gaussian(self.currx, self.sensorVar)
+        print("probability:", probs)
+        print("previous:", self.prv)
+        self.x = gaussian_multiply(probs, self.prv)
+        print(self.x)
+
+        # Add our values into the Arrays
+        print("xmean", self.x.mean)
+        self.currx = self.x.mean
+        self.pos.append(self.currx)
+
+        self.vel.append((self.pos[len(self.pos) - 2] - self.currx) / self.dt)
+        self.acc.append((self.vel[len(self.vel) - 2] - self.vel[len(self.vel) - 1]) / self.dt)
+        self.currTime += self.dt
+
+    def showGraph(self):
+        plt.plot(np.array(range(len(self.pos))), self.pos, 'b', label="Position from Filter")
+        plt.plot(np.array(range(len(self.pos))), self.meas, 'r^', label="measurements")
+        #plt.plot(np.array(range(len(self.pos))), [1] * len(self.pos), 'g', label="Avg position")
+        #plt.plot(np.array(range(len(self.vel))), self.vel, 'o--', label='Velocity')
+        # plt.plot(np.array(range(len(self.acc) )), self.acc, 'g')
+        plt.title("Position Vs Time")
+        plt.legend(loc='best', shadow=True, fontsize='x-large')
+        plt.show()
+=======
     # self.currTime += self.deltaTime;
+>>>>>>> 00f7637f3ded31390d3c070140d40f5deb575c67
