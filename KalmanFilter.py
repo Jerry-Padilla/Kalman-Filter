@@ -26,21 +26,30 @@ class KalmanFilter:
     Original constructor names and run/showGraph entry points are retained.
     """
 
-    def __init__(self, dtime=1.0, velx=0.0, posix=0.0, procVar=0.2,
-                 sensorVar=0.5, initial_position_var=10.0,
-                 initial_velocity_var=10.0):
+    def __init__(
+        self,
+        dtime=1.0,
+        velx=0.0,
+        posix=0.0,
+        procVar=0.2,
+        sensorVar=0.5,
+        initial_position_var=10.0,
+        initial_velocity_var=10.0,
+    ):
         self.dt = validate_number("dtime", dtime, positive=True)
         self.procVar = validate_number("procVar", procVar)
         self.sensorVar = validate_number("sensorVar", sensorVar, positive=True)
         self.x = np.array([posix, velx], dtype=float)
         if not np.all(np.isfinite(self.x)):
             raise ValueError("Initial position and velocity must be finite")
-        self.P = np.diag([
-            validate_number("initial_position_var", initial_position_var),
-            validate_number("initial_velocity_var", initial_velocity_var),
-        ])
+        self.P = np.diag(
+            [
+                validate_number("initial_position_var", initial_position_var),
+                validate_number("initial_velocity_var", initial_velocity_var),
+            ]
+        )
         self.F = np.array([[1.0, self.dt], [0.0, 1.0]])
-        acceleration_effect = np.array([0.5 * self.dt ** 2, self.dt])
+        acceleration_effect = np.array([0.5 * self.dt**2, self.dt])
         self.Q = self.procVar * np.outer(acceleration_effect, acceleration_effect)
         self.H = np.array([1.0, 0.0])
         self.currTime = 0.0
@@ -52,8 +61,10 @@ class KalmanFilter:
         self.position_variances = [float(self.P[0, 0])]
 
     def __str__(self):
-        return (f"Time: {self.currTime:.2f} s | Position: {self.x[0]:.3f} | "
-                f"Velocity: {self.x[1]:.3f}")
+        return (
+            f"Time: {self.currTime:.2f} s | Position: {self.x[0]:.3f} | "
+            f"Velocity: {self.x[1]:.3f}"
+        )
 
     def predict(self):
         """Advance the state and covariance by one time step."""
@@ -73,8 +84,9 @@ class KalmanFilter:
         self.x = self.x + gain * residual
         # Joseph form preserves covariance symmetry and numerical stability.
         correction = np.eye(2) - np.outer(gain, self.H)
-        self.P = (correction @ self.P @ correction.T
-                  + self.sensorVar * np.outer(gain, gain))
+        self.P = correction @ self.P @ correction.T + self.sensorVar * np.outer(
+            gain, gain
+        )
         self.P = 0.5 * (self.P + self.P.T)
         return self.x.copy()
 
@@ -100,10 +112,19 @@ class KalmanFilter:
 
         fig, ax = plt.subplots(figsize=(10, 5), layout="constrained")
         ax.plot(self.times, self.pos, label="Filtered position", color="#087f8c")
-        ax.scatter(self.times, self.meas, label="Measurements", color="#e99b38",
-                   s=18, alpha=0.6)
-        ax.set(xlabel="Time (s)", ylabel="Position (m)",
-               title="Position tracking with a Kalman filter")
+        ax.scatter(
+            self.times,
+            self.meas,
+            label="Measurements",
+            color="#e99b38",
+            s=18,
+            alpha=0.6,
+        )
+        ax.set(
+            xlabel="Time (s)",
+            ylabel="Position (m)",
+            title="Position tracking with a Kalman filter",
+        )
         ax.legend()
         ax.grid(alpha=0.2)
         plt.show()
