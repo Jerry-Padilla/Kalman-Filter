@@ -1,193 +1,110 @@
-'''
-KalmanFilter.py: This code will do the necessary calculations for the Kalman Filter as it is applied to
-a 2 dimensional application.
-'''
+"""Constant-velocity Kalman filter for motion along one spatial axis.
+
+State: [position, velocity]. Observations contain position only.
+Process noise is an independent, constant acceleration each time step.
+"""
 
 __author__ = "Gerardo R Padilla Jr."
 __credits__ = ["Gerardo R Padilla Jr.", "Adyasha Mohanty"]
 
-__version__ = "1.0"
-__email__ = "gerardopadillareynoso@gmail.com"
-__status__ = "Complete"
-
-from collections import namedtuple
-
-# imports
-<<<<<<< HEAD
-import matplotlib.pyplot as plt
-=======
-
->>>>>>> 00f7637f3ded31390d3c070140d40f5deb575c67
 import numpy as np
-import matplotlib
-from scipy.linalg import solve
-from filterpy.stats import plot_covariance_ellipse
 
-gaussian = namedtuple('Gaussian', ['mean', 'var'])
-gaussian.__repr__ = lambda s: '𝒩(μ={:.3f}, 𝜎²={:.3f})'.format(s[0], s[1])
 
-<<<<<<< HEAD
-
-def gaussian_multiply(g1, g2):
-    mean = (g1.var * g2.mean + g2.var * g1.mean) / (g1.var + g2.var)
-    variance = (g1.var * g2.var) / (g1.var + g2.var)
-    return gaussian(mean, variance)
+def validate_number(name, value, *, positive=False):
+    """Validate a finite, nonnegative (or strictly positive) scalar."""
+    value = float(value)
+    if not np.isfinite(value) or (value <= 0 if positive else value < 0):
+        constraint = "positive" if positive else "nonnegative"
+        raise ValueError(f"{name} must be finite and {constraint}")
+    return value
 
 
 class KalmanFilter:
-    # positions
-    pos = []
-    # velocities
-    vel = []
-    # accelerations
-    acc = []
+    """Estimate position and velocity from noisy position observations.
 
-    def __init__(self, dtime=1, velx=0, posix=0, procVar=.2):
-        self.currTime = 0
-        self.procVar = procVar
-        self.dt = dtime
+    procVar is acceleration variance; sensorVar is measurement variance.
+    Original constructor names and run/showGraph entry points are retained.
+    """
 
-        self.pos = [posix]
-        self.meas = [posix]
-        # velocities
-        self.vel = [velx]
-
-        # displacement to add to x
-        self.processModel = gaussian(self.dt, self.procVar)
-
-        self.sensorVar = .5
-
-        self.x = gaussian(1, 10)
-=======
-class KalmanFilter:
-    currTime = 0
-    pos = [0, 0]
-    vel = [0, 0]
-    acc = [0, 0]
-
-    xtm1 = 0
-    ytm1 = 0
-
-    # time step
-    deltaTime = 1
-
-    # P (covariance) = [sigma^2 pos,0].[0,sigma^2 vel]
-    P = 0
-    # u (mu) =[position],[velocity ] in x component
-    u = 0
-    # State transition matrix, Φ Phi
-    F = 0
-    Q = 0
-
-    def __init__(self, dt, velx=0, vely=0, posix=0, posiy=0):
-        self.currTime = 1
-        self.pos = [posix, posiy]
-        self.vel = [velx, vely]
-        self.acc = [0, 0]
-        self.xtm1 = 0
-        self.ytm1 = 0
-        self.deltaTime = dt
-
-        self.u = np.array([[self.pos[0], self.vel[0]]]).T
-
-        self.P = np.diag([20, 900])
-
-        self.F = np.array([[1, self.deltaTime], [0, 1]])
-
-        # Process Noise (Q)
-        self.Q = 10
+    def __init__(self, dtime=1.0, velx=0.0, posix=0.0, procVar=0.2,
+                 sensorVar=0.5, initial_position_var=10.0,
+                 initial_velocity_var=10.0):
+        self.dt = validate_number("dtime", dtime, positive=True)
+        self.procVar = validate_number("procVar", procVar)
+        self.sensorVar = validate_number("sensorVar", sensorVar, positive=True)
+        self.x = np.array([posix, velx], dtype=float)
+        if not np.all(np.isfinite(self.x)):
+            raise ValueError("Initial position and velocity must be finite")
+        self.P = np.diag([
+            validate_number("initial_position_var", initial_position_var),
+            validate_number("initial_velocity_var", initial_velocity_var),
+        ])
+        self.F = np.array([[1.0, self.dt], [0.0, 1.0]])
+        acceleration_effect = np.array([0.5 * self.dt ** 2, self.dt])
+        self.Q = self.procVar * np.outer(acceleration_effect, acceleration_effect)
+        self.H = np.array([1.0, 0.0])
+        self.currTime = 0.0
+        self.times = [0.0]
+        self.pos = [float(posix)]
+        self.vel = [float(velx)]
+        self.acc = [0.0]
+        self.meas = [np.nan]  # No observation at t=0.
+        self.position_variances = [float(self.P[0, 0])]
 
     def __str__(self):
-        return 'Time: {self.currTime} \n' \
-               'Position: X={self.pos[0]} Y={self.pos[1]} \n' \
-               'Velocity: X={self.vel[0]} Y={self.vel[1]} \n' \
-               'Acceleration: X={self.acc[0]} Y={self.acc[1]}\n '.format(self=self)
->>>>>>> 00f7637f3ded31390d3c070140d40f5deb575c67
+        return (f"Time: {self.currTime:.2f} s | Position: {self.x[0]:.3f} | "
+                f"Velocity: {self.x[1]:.3f}")
 
-    def __str__(self):
-        return 'Time: {self.currTime} \n' \
-               'Position: X={self.pos[0]} Y={self.pos[1]} \n' \
-               'Velocity: X={self.vel[0]} Y={self.vel[1]} \n' \
-               'Acceleration: X={self.acc[0]} Y={self.acc[1]}\n '.format(self=self)
+    def predict(self):
+        """Advance the state and covariance by one time step."""
+        self.x = self.F @ self.x
+        self.P = self.F @ self.P @ self.F.T + self.Q
+        self.currTime += self.dt
+        return self.x.copy()
+
+    def update(self, measurement):
+        """Correct the current prediction with a scalar position measurement."""
+        measurement = float(measurement)
+        if not np.isfinite(measurement):
+            raise ValueError("measurement must be finite")
+        residual = measurement - self.H @ self.x
+        innovation_variance = self.H @ self.P @ self.H + self.sensorVar
+        gain = self.P @ self.H / innovation_variance
+        self.x = self.x + gain * residual
+        # Joseph form preserves covariance symmetry and numerical stability.
+        correction = np.eye(2) - np.outer(gain, self.H)
+        self.P = (correction @ self.P @ correction.T
+                  + self.sensorVar * np.outer(gain, gain))
+        self.P = 0.5 * (self.P + self.P.T)
+        return self.x.copy()
 
     def run(self, currx):
-        self.currx = currx
-        self.meas.append(self.currx)
+        """Predict, update, and record one observation at the next time step."""
+        measurement = float(currx)
+        if not np.isfinite(measurement):
+            raise ValueError("measurement must be finite")
+        previous_velocity = self.x[1]
         self.predict()
-        self.update()
-
-<<<<<<< HEAD
-    def predict(self):
-        print('Prediction Step at time = {self.currTime}'.format(self=self))
-
-        self.prv = gaussian(self.x.mean + self.processModel.mean, self.x.var + self.processModel.var)
-=======
-
-def predict(self):
-    print('Prediction Step at time = {self.currTime}'.format(self=self))
-
-    # x = Fx
-    self.pos[0] = np.dot(self.F, self.pos[0])
-
-    # P = FPF' + Q
-    self.P = np.dot(np.dot(self.F, self.P), self.F.T) + self.Q
-
-    plot_covariance_ellipse(self.u, self.P, edgecolor='r', axis_equal=True,
-                            title='Covariance at time = {self.currTime}'.format(self=self))
-    matplotlib.pyplot.xlabel('position')
-    matplotlib.pyplot.ylabel('velocity')
-    matplotlib.pyplot.show()
-
-
-def update(self):
-    print('Update Step at time = {self.currTime}\n'.format(self=self))
-
-    # System Uncertainty
-    # S = H (dot) P¯ (dot)S (dot) H.T + R
-    S = np.dot(H, np.dot(P, H.T)) + R
-
-    #Kalman Gain
-    # K = P¯ (dot) H.T (dot) S^−1
-    K = np.dot(np.dot(P, H.T), inv(S)))
-
-    #Residual
-    #y = z − H (dot) x¯
-    y = z - np.dot(H, x)
-
-    # State Update
-    # x = x¯ + K (dot)  y
-    x += np.dot(K, y)
->>>>>>> 00f7637f3ded31390d3c070140d40f5deb575c67
-
-    #Covariance Update
-    # P = (I− KH) P¯
-    P = P - np.dot(np.dot(K, H), P))
-
-<<<<<<< HEAD
-        probs = gaussian(self.currx, self.sensorVar)
-        print("probability:", probs)
-        print("previous:", self.prv)
-        self.x = gaussian_multiply(probs, self.prv)
-        print(self.x)
-
-        # Add our values into the Arrays
-        print("xmean", self.x.mean)
-        self.currx = self.x.mean
-        self.pos.append(self.currx)
-
-        self.vel.append((self.pos[len(self.pos) - 2] - self.currx) / self.dt)
-        self.acc.append((self.vel[len(self.vel) - 2] - self.vel[len(self.vel) - 1]) / self.dt)
-        self.currTime += self.dt
+        self.update(measurement)
+        self.times.append(self.currTime)
+        self.meas.append(measurement)
+        self.pos.append(float(self.x[0]))
+        self.vel.append(float(self.x[1]))
+        self.acc.append(float((self.x[1] - previous_velocity) / self.dt))
+        self.position_variances.append(float(self.P[0, 0]))
+        return self.x.copy()
 
     def showGraph(self):
-        plt.plot(np.array(range(len(self.pos))), self.pos, 'b', label="Position from Filter")
-        plt.plot(np.array(range(len(self.pos))), self.meas, 'r^', label="measurements")
-        #plt.plot(np.array(range(len(self.pos))), [1] * len(self.pos), 'g', label="Avg position")
-        #plt.plot(np.array(range(len(self.vel))), self.vel, 'o--', label='Velocity')
-        # plt.plot(np.array(range(len(self.acc) )), self.acc, 'g')
-        plt.title("Position Vs Time")
-        plt.legend(loc='best', shadow=True, fontsize='x-large')
+        """Display recorded positions and measurements from calls to run()."""
+        import matplotlib.pyplot as plt
+
+        fig, ax = plt.subplots(figsize=(10, 5), layout="constrained")
+        ax.plot(self.times, self.pos, label="Filtered position", color="#087f8c")
+        ax.scatter(self.times, self.meas, label="Measurements", color="#e99b38",
+                   s=18, alpha=0.6)
+        ax.set(xlabel="Time (s)", ylabel="Position (m)",
+               title="Position tracking with a Kalman filter")
+        ax.legend()
+        ax.grid(alpha=0.2)
         plt.show()
-=======
-    # self.currTime += self.deltaTime;
->>>>>>> 00f7637f3ded31390d3c070140d40f5deb575c67
+        return fig
